@@ -1,7 +1,7 @@
 import math
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from .bag_io import load_topic_data, resolve_db3_files, resolve_time_window_ns
+from .bag_io import load_topic_data, resolve_time_window_ns
 from .models import (
     AnalysisOptions,
     AnalysisResult,
@@ -79,7 +79,8 @@ def default_selected_topics(topic_data: Dict[str, TopicData]) -> List[str]:
         entry = topic_data[topic]
         if topic in DEFAULT_EXCLUDED_TOPICS:
             continue
-        if len(entry.bag_times_ns) <= 1:
+        topic_message_count = entry.message_count if entry.message_count is not None else len(entry.bag_times_ns)
+        if topic_message_count <= 1:
             continue
         topics.append(topic)
     return topics
@@ -448,15 +449,7 @@ def build_variability_table_rows(summary: VariabilitySummary) -> List[List[str]]
 # Top-level bag analysis
 
 
-def analyze_bag(options: AnalysisOptions) -> AnalysisResult:
-    db3_files = resolve_db3_files(options.bag_path)
-    start_ns, end_ns, _, _ = resolve_time_window_ns(db3_files, options.start_offset_s, options.end_offset_s)
-    topic_data = load_topic_data(
-        db3_files,
-        options.selected_topics,
-        start_time_ns=start_ns,
-        end_time_ns=end_ns,
-    )
+def analyze_topic_data(options: AnalysisOptions, topic_data: Dict[str, TopicData]) -> AnalysisResult:
     topic_names = list(options.selected_topics) if options.selected_topics else default_selected_topics(topic_data)
 
     missing_topics = [topic for topic in topic_names if topic not in topic_data]
@@ -505,3 +498,14 @@ def analyze_bag(options: AnalysisOptions) -> AnalysisResult:
         dpi=options.dpi,
         offset_summaries=bag_header_offset_summaries,
     )
+
+
+def analyze_bag(options: AnalysisOptions) -> AnalysisResult:
+    start_ns, end_ns, _, _ = resolve_time_window_ns(options.bag_path, options.start_offset_s, options.end_offset_s)
+    topic_data = load_topic_data(
+        options.bag_path,
+        options.selected_topics,
+        start_time_ns=start_ns,
+        end_time_ns=end_ns,
+    )
+    return analyze_topic_data(options, topic_data)

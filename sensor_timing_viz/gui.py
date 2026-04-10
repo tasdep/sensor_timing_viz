@@ -38,6 +38,7 @@ from PyQt5.QtWidgets import (
 
 from .analysis import (
     analyze_bag,
+    analyze_topic_data,
     build_timing_diagram_summary_table_rows,
     default_selected_topics,
     filter_analysis_result,
@@ -117,7 +118,11 @@ class AnalysisWorker(QObject):
                 bag_path, start_offset_s, end_offset_s = self.payload
                 result = discover_topics(bag_path, start_offset_s=start_offset_s, end_offset_s=end_offset_s)
             elif self.mode == "analyze":
-                result = analyze_bag(self.payload)
+                options, preloaded_topic_data = self.payload
+                if preloaded_topic_data is None:
+                    result = analyze_bag(options)
+                else:
+                    result = analyze_topic_data(options, preloaded_topic_data)
             else:
                 raise RuntimeError(f"Unknown worker mode: {self.mode}")
             self.finished.emit(result, self.payload)
@@ -465,7 +470,8 @@ class TimingViewerWindow(QMainWindow):
             analysis_signature = self.current_analysis_signature(options)
             if self.full_result is None or self.last_analysis_signature != analysis_signature:
                 self.pending_visible_topics = visible_topics
-                self.start_worker("analyze", options, "Analyzing bag...")
+                preloaded_topic_data = self.current_topics if self.current_topics else None
+                self.start_worker("analyze", (options, preloaded_topic_data), "Analyzing bag...")
                 return
 
             self.current_result = filter_analysis_result(self.full_result, visible_topics)
@@ -862,7 +868,7 @@ class TimingViewerWindow(QMainWindow):
 
     def on_worker_finished(self, result, payload) -> None:
         self.progress_bar.setVisible(False)
-        if isinstance(payload, tuple):
+        if isinstance(payload, tuple) and payload and isinstance(payload[0], Path):
             bag_path, _, _ = payload
             self.current_topics = result
             self.available_plot_topics = default_selected_topics(self.current_topics)
@@ -875,7 +881,7 @@ class TimingViewerWindow(QMainWindow):
             return
 
         self.full_result = result
-        options = payload
+        options, _preloaded_topic_data = payload
         self.last_analysis_signature = self.current_analysis_signature(options)
         visible_topics = self.pending_visible_topics or self.selected_topics()
         self.current_result = filter_analysis_result(self.full_result, visible_topics)

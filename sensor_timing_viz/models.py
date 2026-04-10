@@ -11,6 +11,7 @@ GapInterval = Tuple[float, float, float]
 class TopicData:
     name: str
     message_type: str
+    message_count: Optional[int] = None
     bag_times_ns: List[int] = field(default_factory=list)
     header_times_ns: List[int] = field(default_factory=list)
 

@@ -9,6 +9,7 @@ ROS 2 package for inspecting rosbag sensor timing with both static exports and a
 - Gap detection and summary statistics
 - Bag-Header Offset plotting
 - Timing Variability plots
+- Rosbag loading through the `rosbag2_py` API
 - Interactive GUI with:
   - topic filtering
   - overview timeline window
@@ -72,6 +73,7 @@ ros2 run sensor_timing_viz sensor_timing_cli /path/to/your_bag --start 0.0 --end
 - `header` timing uses `header.stamp`
 - the Timing Diagram and its summary table share one timing-basis control
 - the Timing Variability tab has its own independent basis control
+- bag loading uses the rosbag2 Python API, so supported formats depend on the storage plugins available in your ROS 2 installation
 - the rate columns use effective average rate instead of `1 / median_dt`
 
 ## Module Layout
@@ -79,7 +81,7 @@ ros2 run sensor_timing_viz sensor_timing_cli /path/to/your_bag --start 0.0 --end
 - `sensor_timing_viz.models`
   Shared dataclasses such as `AnalysisOptions`, `AnalysisResult`, and topic summary types.
 - `sensor_timing_viz.bag_io`
-  Rosbag2 SQLite discovery, message loading, and time-window selection.
+  Rosbag2 bag discovery, message loading, and time-window selection through `rosbag2_py`.
 - `sensor_timing_viz.analysis`
   Timing statistics, gap detection, offset summaries, and variability summaries.
 - `sensor_timing_viz.plotting`
