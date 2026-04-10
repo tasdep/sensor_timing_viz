@@ -255,7 +255,7 @@ def render_variability_figure(
             figure.set_size_inches(result.figure_width, 8.0, forward=True)
             figure.set_dpi(result.dpi)
 
-    grid = GridSpec(3, 2, figure=figure, height_ratios=[2.0, 2.0, 1.6], width_ratios=[3.0, 1.4])
+    grid = GridSpec(3, 2, figure=figure, height_ratios=[2.0, 2.0, 1.9], width_ratios=[3.0, 1.4])
     dt_axis = figure.add_subplot(grid[0, 0])
     dev_axis = figure.add_subplot(grid[1, 0], sharex=dt_axis)
     hist_axis = figure.add_subplot(grid[0:2, 1])
@@ -294,9 +294,9 @@ def render_variability_figure(
     )
     table.auto_set_font_size(False)
     table.set_fontsize(8)
-    table.scale(1.0, 1.2)
+    table.scale(1.0, 1.15)
 
-    figure.subplots_adjust(left=0.09, right=0.985, top=0.94, bottom=0.06, hspace=0.35, wspace=0.25)
+    figure.subplots_adjust(left=0.09, right=0.985, top=0.94, bottom=0.09, hspace=0.42, wspace=0.25)
     return figure
 
 
