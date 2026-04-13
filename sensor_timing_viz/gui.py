@@ -39,6 +39,7 @@ from PyQt5.QtWidgets import (
 from .analysis import (
     analyze_bag,
     build_timing_diagram_summary_table_rows,
+    choose_timing_diagram_plot_times,
     default_selected_topics,
     filter_analysis_result,
     parse_expected_periods,
@@ -179,6 +180,12 @@ class TimingViewerWindow(QMainWindow):
         self.timestamp_combo.addItems(["header", "bag"])
         self.timestamp_combo.setCurrentText("header")
         self.timestamp_combo.currentTextChanged.connect(self.schedule_render)
+        self.show_bag_times_checkbox = QCheckBox("Bag")
+        self.show_bag_times_checkbox.setChecked(True)
+        self.show_bag_times_checkbox.toggled.connect(self.update_timing_diagram_display)
+        self.show_header_times_checkbox = QCheckBox("Header")
+        self.show_header_times_checkbox.setChecked(True)
+        self.show_header_times_checkbox.toggled.connect(self.update_timing_diagram_display)
 
         self.start_time_spin = QDoubleSpinBox()
         self.start_time_spin.setRange(0.0, 1_000_000.0)
@@ -326,6 +333,15 @@ class TimingViewerWindow(QMainWindow):
 
         timing_tab = QWidget()
         timing_layout = QVBoxLayout(timing_tab)
+        timing_display_header = QHBoxLayout()
+        timing_display_header.addWidget(QLabel("Show"))
+        timing_display_header.addWidget(self.show_bag_times_checkbox)
+        timing_display_header.addWidget(self.show_header_times_checkbox)
+        fit_data_button = QPushButton("Fit Data")
+        fit_data_button.clicked.connect(self.fit_timing_view_to_visible_data)
+        timing_display_header.addWidget(fit_data_button)
+        timing_display_header.addStretch(1)
+        timing_layout.addLayout(timing_display_header)
         timing_layout.addWidget(self.toolbar)
         timing_layout.addWidget(self.canvas, stretch=2)
         summary_header = QHBoxLayout()
@@ -481,7 +497,13 @@ class TimingViewerWindow(QMainWindow):
             return
         preserved_timing_xlim = self.main_axis.get_xlim() if self.main_axis is not None else None
         set_active_timing_basis(self.current_result, self.timestamp_combo.currentText())
-        render_timing_diagram_figure(self.current_result, self.figure, embedded=True)
+        render_timing_diagram_figure(
+            self.current_result,
+            self.figure,
+            embedded=True,
+            show_bag_times=self.show_bag_times_checkbox.isChecked(),
+            show_header_times=self.show_header_times_checkbox.isChecked(),
+        )
         self.bind_timing_interactions()
         if preserved_timing_xlim is not None and self.main_axis is not None:
             self.main_axis.set_xlim(*preserved_timing_xlim)
@@ -492,6 +514,53 @@ class TimingViewerWindow(QMainWindow):
         self.render_timing_variability_view()
         self.populate_timing_diagram_summary_table()
         self.statusBar().showMessage("Timing diagram updated", 4000)
+
+    def update_timing_diagram_display(self) -> None:
+        if self.current_result is None:
+            return
+        preserved_timing_xlim = self.main_axis.get_xlim() if self.main_axis is not None else None
+        render_timing_diagram_figure(
+            self.current_result,
+            self.figure,
+            embedded=True,
+            show_bag_times=self.show_bag_times_checkbox.isChecked(),
+            show_header_times=self.show_header_times_checkbox.isChecked(),
+        )
+        self.bind_timing_interactions()
+        if preserved_timing_xlim is not None and self.main_axis is not None:
+            self.main_axis.set_xlim(*preserved_timing_xlim)
+            self.sync_main_axis_limits()
+        self.canvas.draw()
+
+    def fit_timing_view_to_visible_data(self) -> None:
+        if self.current_result is None or self.main_axis is None:
+            return
+
+        visible_times_s: List[float] = []
+        for topic in self.current_result.topic_names:
+            plot_times = choose_timing_diagram_plot_times(
+                self.current_result.topic_data[topic],
+                self.current_result.timestamp_source,
+                self.current_result.reference_ns,
+            )
+            if self.show_bag_times_checkbox.isChecked():
+                visible_times_s.extend(plot_times.get("bag", []))
+            if self.show_header_times_checkbox.isChecked():
+                visible_times_s.extend(plot_times.get("header", []))
+
+        if not visible_times_s:
+            self.statusBar().showMessage("No visible bag/header timestamps to fit.", 4000)
+            return
+
+        min_time_s = min(visible_times_s)
+        max_time_s = max(visible_times_s)
+        if max_time_s <= min_time_s:
+            padding_s = 0.5
+        else:
+            padding_s = max((max_time_s - min_time_s) * 0.02, 0.05)
+        self.main_axis.set_xlim(min_time_s - padding_s, max_time_s + padding_s)
+        self.sync_main_axis_limits()
+        self.canvas.draw()
 
     def populate_timing_diagram_summary_table(self) -> None:
         if self.current_result is None:

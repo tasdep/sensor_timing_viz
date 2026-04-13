@@ -21,7 +21,11 @@ from .models import AnalysisResult
 
 
 def render_timing_diagram_figure(
-    result: AnalysisResult, figure: Optional[Figure] = None, embedded: bool = False
+    result: AnalysisResult,
+    figure: Optional[Figure] = None,
+    embedded: bool = False,
+    show_bag_times: bool = True,
+    show_header_times: bool = True,
 ) -> Figure:
     if not result.topic_names:
         raise RuntimeError("No topics available to plot after filtering.")
@@ -77,7 +81,7 @@ def render_timing_diagram_figure(
                 )
             )
 
-        if "bag" in plot_times and plot_times["bag"]:
+        if show_bag_times and "bag" in plot_times and plot_times["bag"]:
             overview_axis.scatter(
                 plot_times["bag"],
                 [row_index] * len(plot_times["bag"]),
@@ -99,7 +103,7 @@ def render_timing_diagram_figure(
                 zorder=3,
             )
 
-        if "header" in plot_times and plot_times["header"]:
+        if show_header_times and "header" in plot_times and plot_times["header"]:
             overview_axis.scatter(
                 plot_times["header"],
                 [row_index] * len(plot_times["header"]),
@@ -122,7 +126,9 @@ def render_timing_diagram_figure(
                 zorder=4,
             )
 
-    axis.legend(loc="upper right")
+    handles, labels = axis.get_legend_handles_labels()
+    if handles:
+        axis.legend(loc="upper right")
 
     axis.set_xlim(left=0.0, right=max_time_s * 1.02 if max_time_s > 0.0 else 1.0)
     overview_axis.set_xlim(left=0.0, right=max_time_s * 1.02 if max_time_s > 0.0 else 1.0)
